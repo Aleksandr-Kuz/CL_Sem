@@ -220,18 +220,9 @@ def normalization_sentence(tokens):
 
 
 def spark_processing_extract_person():
-    spark = SparkSession \
-        .builder \
-        .appName("SentenceProcessor") \
-        .getOrCreate()
-
-    input_data = spark.sparkContext.textFile('./sentences.txt')
-    prepared_data = input_data.map(lambda x: processing_sentence(x))
-
-    prepared_df = prepared_data.toDF().selectExpr('_1 as sentence', '_2 as mas_sentences_with_person_id')
-    prepared_df.show()
-
-    spark.stop()
+    with open("sentences.txt", "r", encoding='utf-8') as file_sentences:
+        for line in file_sentences.readlines():
+            processing_sentence(line.strip())
 
 
 def spark_processing():
