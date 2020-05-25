@@ -21,7 +21,8 @@ def get_db_connection():
 
 
 db = get_db_connection()
-db.SentencesWithPerson.remove()
+# db.SentencesWithPerson.remove()
+# db.News.remove()
 
 
 # def get_db_collection_object(collection_name: str):

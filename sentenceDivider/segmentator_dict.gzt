@@ -21,3 +21,15 @@ TAbbreviation "кв." {
   text = "кв."
   type = NewerEOS
 }
+
+TAbbreviation "ч." {
+  key = { "abbreviation_г." type = CUSTOM }
+  text = "ч."
+  type = NewerEOS
+}
+
+TAbbreviation "ст." {
+  key = { "abbreviation_г." type = CUSTOM }
+  text = "ст."
+  type = NewerEOS
+}

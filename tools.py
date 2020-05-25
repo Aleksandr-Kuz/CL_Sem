@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
 import re
 import sys
+import os
+
+import pickle
 import random
 import pymorphy2
 import requests
 import subprocess
+from time import time
 from datetime import datetime
 from bs4 import BeautifulSoup
 from pymongo import MongoClient
@@ -113,30 +117,33 @@ def get_and_save_text_news():
     if not news_collection:
         return
 
-    news_list = news_collection.find()
+    news_list = news_collection.find().limit(10)
 
     print('Анализ продложений из текстов статей')
-    with open("text.txt", "w", encoding='utf-8') as file_text, open("sentences.txt", "w", encoding='utf-8') as file_sentences:
-        printProgressBar(0, news_list.count(), prefix='Progress:', suffix='Complete', length=50)
-        for idx, news in enumerate(news_list):
-            try:
-                title = news['title'].rstrip('.')
-                text = news['text']
 
-                file_text.write('{0}. {1}\n'.format(title, text))
+    printProgressBar(0, news_list.count(), prefix='Progress:', suffix='Complete', length=50)
+    for idx, news in enumerate(news_list):
+        tic = time()
+        try:
+            title = news['title'].rstrip('.')
+            text = news['text']
 
-                tomita = TomitaParser(exec_path, config_sentence_divider, debug=False)
-                output, errors = tomita.run('{0}. {1}'.format(title, text))
+            tomita = TomitaParser(exec_path, config_sentence_divider, debug=False)
+            output, errors = tomita.run('{0}. {1}'.format(title, text))
 
+            with open("./sentences/{0}.txt".format(news.get('_id')), "w", encoding='utf-8') as file_sentences:
                 for lines in output.split('\n'):
                     if len(lines.strip()) > 0:
-                        file_sentences.write('{0}||{1}\n'.format(news.get('_id'), lines.strip()))
-            except Exception:
-                pass
+                        file_sentences.write('{1}\n'.format(news.get('_id'), lines.strip()))
+        except Exception:
+            pass
 
-            printProgressBar(idx + 1, news_list.count(), prefix='Progress:', suffix='Complete', length=50)
+        toc = time()
+        print(toc - tic)
 
-        print('Все предложения записаны в файл sentences.txt')
+        printProgressBar(idx + 1, news_list.count(), prefix='Progress:', suffix='Complete', length=50)
+
+    print('Все предложения записаны в файл sentences.txt')
 
 
             # processing_sentences(news.get('_id'))
@@ -219,23 +226,33 @@ def normalization_sentence(tokens):
         return []
 
 
-def spark_processing_extract_person():
-    with open("sentences.txt", "r", encoding='utf-8') as file_sentences:
-        for line in file_sentences.readlines():
-            processing_sentence(line.strip())
+def processing_extract_person():
+    files = os.listdir('./sentences/')
+    print(files)
+    for file_name in files:
+        with open('./sentences/{0}'.format(file_name), "r", encoding='utf-8') as file_sentences:
+            for line in file_sentences.readlines():
+                processing_sentence(line.strip())
 
 
-def spark_processing():
+
+def train_model_sentences_with_person():
+    sentences_with_person_collection = get_db_collection_object('SentencesWithPerson')
+
+    with open("sentences_with_person.txt", "w", encoding='utf-8') as file_sentences_with_person:
+        for sen in sentences_with_person_collection.find():
+            file_sentences_with_person.write('{0}\n'.format(sen['sentence']))
+
     spark = SparkSession \
         .builder \
         .appName("SentenceProcessor") \
         .getOrCreate()
 
-    input_data = spark.sparkContext.textFile('./sentences.txt')
-    prepared_data = input_data.map(lambda x: processing_sentence(x))
-    prepared_data = prepared_data.filter(lambda x: len(x[1]) > 0)
+    input_data = spark.sparkContext.textFile('./sentences_with_person.txt')
+    prepared_data = input_data.map(lambda x: (x, len(x)))
+    prepared_data = prepared_data.filter(lambda x: x[1] > 0)
 
-    prepared_df = prepared_data.toDF().selectExpr('_1 as sentence', '_2 as mas_sentences_with_person_id')
+    prepared_df = prepared_data.toDF().selectExpr('_1 as sentence', '_2 as length')
     # prepared_df.show(truncate=False)
 
     tokenizer = Tokenizer(inputCol="sentence", outputCol="words")
@@ -244,7 +261,7 @@ def spark_processing():
 
     # Отфильтровать токены, оставив только слова
     filtered_words_data = words_data.rdd.map(lambda x: (x[0], x[1], get_only_words(x[2])))
-    filtered_df = filtered_words_data.toDF().selectExpr('_1 as sentence', '_2 as mas_sentences_with_person_id', '_3 as words')
+    filtered_df = filtered_words_data.toDF().selectExpr('_1 as sentence', '_2 as length', '_3 as words')
     # filtered_df.show()
 
     # Удалить стоп-слова (союзы, предлоги, местоимения и т.д.)
@@ -254,7 +271,7 @@ def spark_processing():
 
     #
     normalize_words_data = filtered.rdd.map(lambda x: (x[0], x[1], x[2], normalization_sentence(x[3])))
-    normalized_df = normalize_words_data.toDF().selectExpr('_1 as sentence', '_2 as mas_sentences_with_person_id', '_3 as words', '_4 as normalize_words')
+    normalized_df = normalize_words_data.toDF().selectExpr('_1 as sentence', '_2 as length', '_3 as words', '_4 as normalize_words')
     # normalized_df.show()
 
     #
@@ -274,18 +291,41 @@ def spark_processing():
     w2v_df = model.transform(rescaled_data)
     # w2v_df.show(truncate=False)
 
-    print(model.findSynonyms('бочаров', 2).show())
+    # print(model.findSynonyms('бочаров', 2).show())
+
+    # sc = spark.sparkContext
+    path = './models/model_person'
+    #
+    # print(sc, path)
+    model.write().overwrite().save(path)
+
+    #m = Word2Vec.load('./models/model_person/')
+    # pickle.dump(model, './models/model_person/mp.model')
+
+    spark.stop()
 
     # s = ('губернатор', 'андрей', 'высокий')
     # print(get_analogy(s, model))
     # print(model.getVectors().show())
 
     # w2v_df.select(['sentence', 'normalize_words', 'result']).show(truncate=False)
-    spark.stop()
+
 
 
 if __name__ == '__main__':
-    spark_processing_extract_person()
+    get_and_save_text_news()
+    # train_model_sentences_with_person()
+    #
+    # spark = SparkSession \
+    #     .builder \
+    #     .appName("SentenceProcessor_1") \
+    #     .getOrCreate()
+    #
+    # w2v_model = Word2Vec.load('./models/model_person/')
+    #
+    # spark.stop()
+    #
+    # train_model_sentences_with_person()
     # spark_processing()
     # get_and_save_text_news()
 
