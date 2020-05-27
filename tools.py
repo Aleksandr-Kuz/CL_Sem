@@ -52,6 +52,7 @@ def show_progress(value):
 def get_only_words(tokens):
     return list(filter(lambda x: re.match('[a-zA-ZА-Яа-я]+', x), tokens))
 
+
 # Print iterations progress
 def printProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=50, fill='█', printEnd="\r"):
     percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
@@ -313,7 +314,24 @@ def train_model_sentences_with_person():
 
 
 if __name__ == '__main__':
-    get_and_save_text_news()
+
+    try:
+        start = int(sys.argv[1])
+        startFileName = sys.argv[2]
+
+        end = int(sys.argv[3])
+        endFileName = sys.argv[4]
+
+        print(start)
+        print(startFileName)
+        print(end)
+        print(endFileName)
+    except Exception:
+        pass
+
+
+
+    # get_and_save_text_news()
     # train_model_sentences_with_person()
     #
     # spark = SparkSession \

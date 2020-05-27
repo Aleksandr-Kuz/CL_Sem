@@ -2,7 +2,7 @@ from random import randint
 from pymongo import MongoClient
 import requests
 import re
-
+import csv
 from nltk import FreqDist
 from nltk import classify
 from nltk import NaiveBayesClassifier
@@ -20,7 +20,20 @@ def get_db_connection():
     return client.CLSem
 
 
-db = get_db_connection()
+# f = open("csv/positive.csv", mode='r+', encoding='utf8')
+# text = f.read()
+# text = text.replace('\0', '')
+# text = text.replace('', '')
+# f.write(text)
+# f.close()
+
+# f = open("csv/negative.csv", mode='r+', encoding='utf8')
+# text = f.read()
+# text = text.replace('\0', '')
+# f.write(text)
+# f.close()
+
+# db = get_db_connection()
 # db.SentencesWithPerson.remove()
 # db.News.remove()
 
