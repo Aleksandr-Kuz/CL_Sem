@@ -19,6 +19,9 @@ def get_db_connection():
     client = MongoClient("mongodb+srv://parser:qB5kTo4xunLdKdl8@cluster-zufad.mongodb.net/test?retryWrites=true&w=majority")
     return client.CLSem
 
+#
+# db = get_db_connection()
+# result = db.TonalitySentencesWithPerson.remove()
 
 # f = open("csv/positive.csv", mode='r+', encoding='utf8')
 # text = f.read()

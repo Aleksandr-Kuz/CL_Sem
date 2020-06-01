@@ -79,6 +79,8 @@ def get_db_collection_object(collection_name: str):
         return db.Sights
     elif collection_name == 'SentencesWithPerson':
         return db.SentencesWithPerson
+    elif collection_name == 'TonalitySentencesWithPerson':
+        return db.TonalitySentencesWithPerson
     else:
         return None
 

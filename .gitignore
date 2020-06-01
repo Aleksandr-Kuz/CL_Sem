@@ -2,8 +2,6 @@
 .vscode/
 .idea/
 
-sentences/
-/csv/
 
 # Vagrant
 .vagrant/
